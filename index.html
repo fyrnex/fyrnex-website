@@ -509,6 +509,140 @@ body::before{
   content:'';position:fixed;inset:0;z-index:200;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+
+/* ===== Mobile conversion polish ===== */
+@media (max-width:760px){
+  /* Give the hero breathing room below the fixed header */
+  .hero{
+    min-height:auto;
+    padding:115px 0 70px;
+  }
+  .hero h1{
+    font-size:42px;
+    line-height:1.02;
+  }
+  .hero p{
+    margin-bottom:28px;
+    font-size:15px;
+  }
+  .hero .buttons{
+    flex-direction:column;
+    width:100%;
+    max-width:320px;
+    margin:0 auto;
+  }
+  .hero .buttons .btn{
+    width:100%;
+  }
+
+  /* Remove awkward floating scroll cue on small screens */
+  .hero .scroll-cue{display:none}
+
+  /* Header call button should not cover content */
+  .navcall{
+    display:none;
+  }
+
+  /* Keep industry images attractive instead of over-cropping */
+  .showcase{
+    aspect-ratio:4/4.8;
+    border-radius:12px;
+  }
+  .showcase-media img{
+    object-position:center;
+    transform:scale(1.03);
+  }
+  .showcase-slide.active .showcase-media img{
+    transform:scale(1.06);
+  }
+  .showcase-copy{
+    bottom:45px;
+    padding:24px;
+  }
+
+  /* Social links visible in mobile menu */
+  .mobile-menu .msocial{
+    display:flex !important;
+  }
+
+  /* Stop headings feeling like they float over scrolling content */
+  section .head,
+  .contact .head{
+    position:static;
+    background:transparent;
+    backdrop-filter:none;
+  }
+
+  /* Contact buttons: separate instead of cramped row */
+  .contact .buttons{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+    width:100%;
+  }
+  .contact .buttons .btn{
+    width:100%;
+    min-height:48px;
+  }
+
+  .contact-grid{
+    gap:35px;
+  }
+  .box{
+    padding:8px 20px;
+  }
+  .row{
+    display:block;
+    padding:18px 0;
+  }
+  .row a{
+    display:block;
+    margin-top:4px;
+    overflow-wrap:anywhere;
+  }
+
+  /* Avoid hero text colliding with trust strip */
+  .trust-strip{
+    margin-top:22px;
+    line-height:1.8;
+  }
+}
+
+/* Extra small phones */
+@media (max-width:380px){
+  .hero h1{font-size:36px}
+  .wrap{width:92%}
+  .showcase-copy h3{font-size:22px}
+}
+
+/* ===== What we do interactive service slider ===== */
+.services-list{
+  overflow:hidden;
+  display:flex;
+  gap:18px;
+  border-top:0;
+  cursor:grab;
+}
+.services-list.dragging{cursor:grabbing}
+.services-list .svc{
+  flex:0 0 min(360px, 85vw);
+  border:1px solid var(--line);
+  padding:28px;
+  border-radius:14px;
+  background:var(--panel);
+}
+.services-list .svc:hover{padding-left:28px}
+@media(max-width:760px){
+  .showcase-media img{
+    object-fit:contain;
+    transform:scale(1);
+    background:#0a0a0b;
+  }
+  .showcase-slide.active .showcase-media img{
+    transform:scale(1);
+  }
+}
+
 </style>
 <noscript><style>.reveal{opacity:1 !important;transform:none !important}</style></noscript>
 </head>
@@ -1334,5 +1468,65 @@ setTimeout(() => document.querySelectorAll('.reveal:not(.in)').forEach(el => el.
 })();
 </script>
 
+
+<script>
+/* Interactive What We Do slider */
+(()=>{
+ const slider=document.querySelector('.services-list');
+ if(!slider) return;
+ let down=false,start=0,left=0,auto;
+ const move=()=>{ if(!down) slider.scrollLeft+=1; };
+ const startAuto=()=>{clearInterval(auto);auto=setInterval(move,25)};
+ const stopAuto=()=>clearInterval(auto);
+ slider.addEventListener('pointerdown',e=>{
+   down=true; stopAuto(); start=e.clientX; left=slider.scrollLeft;
+   slider.classList.add('dragging'); slider.setPointerCapture(e.pointerId);
+ });
+ slider.addEventListener('pointermove',e=>{
+   if(!down)return;
+   slider.scrollLeft=left-(e.clientX-start);
+ });
+ slider.addEventListener('pointerup',()=>{down=false;slider.classList.remove('dragging');startAuto()});
+ slider.addEventListener('pointercancel',()=>{down=false;startAuto()});
+ slider.addEventListener('mouseenter',stopAuto);
+ slider.addEventListener('mouseleave',startAuto);
+ startAuto();
+})();
+</script>
+
+<style>
+/* Mobile Who We Serve: keep desktop-style image text overlay */
+@media (max-width:760px){
+  .showcase{
+    aspect-ratio:16/10;
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .showcase-media img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    transform:scale(1);
+  }
+  .showcase-slide.active .showcase-media img{
+    transform:scale(1.05);
+  }
+  .showcase-copy{
+    position:absolute;
+    inset:auto 0 0 0;
+    width:100%;
+    padding:24px 22px;
+    justify-content:flex-end;
+    align-items:flex-start !important;
+    text-align:left !important;
+    z-index:2;
+  }
+  .showcase-slide .showcase-scrim{
+    background:linear-gradient(0deg,rgba(6,6,7,.92) 0%,rgba(6,6,7,.55) 45%,rgba(6,6,7,.05) 80%) !important;
+  }
+  .showcase-copy h3{font-size:22px;}
+  .showcase-copy p{font-size:13px;max-width:300px;}
+}
+</style>
 </body>
 </html>
