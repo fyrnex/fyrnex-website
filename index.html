@@ -105,8 +105,15 @@ header{top:38px}
 .navcall svg{width:14px;height:14px;flex:none}
 @media(max-width:900px){
   .topbar{display:none}
-  header{top:0}
-  .mobile-menu{inset:68px 0 auto 0}
+  /* Keep the fixed mobile header visually solid so page content never shows through it while scrolling. */
+  header{
+    top:0;
+    background:var(--bg);
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    box-shadow:0 1px 0 rgba(255,255,255,.06);
+  }
+  .mobile-menu{inset:68px 0 auto 0;background:var(--bg)}
   .hero{padding:120px 0 80px}
 }
 .mobile-menu .msocial{
@@ -966,26 +973,23 @@ header{background:rgba(10,10,11,.94);backdrop-filter:blur(20px);-webkit-backdrop
         </div>
         <p>Feedback from the sites we service across Kolkata.</p>
       </div>
-      <!-- These 3 cards are shown until (and unless) the live Google Reviews fetch below
-           succeeds. Once GOOGLE_PLACES_API_KEY + GOOGLE_PLACE_ID are set in the script
-           near the end of this file, they get replaced automatically with the 3 most
-           recent real Google reviews on every page load. -->
+      <!-- Static Google reviews. No Google Places API is used. -->
       <div class="reviews-grid reveal" id="reviews-grid">
-        <div class="review-card">
+        <a href="https://share.google/jm2EIbCsINy0qaVyh" target="_blank" rel="noopener" style="display:block;color:inherit;text-decoration:none;cursor:pointer;"><div class="review-card">
           <div class="stars">★★★★★</div>
-          <p>"Placeholder review — swap in a real client quote here."</p>
-          <span class="reviewer">— Client name, Company</span>
+          <p>"Excellent experience with Fyrnex. I purchased a foam fire extinguisher from them and was impressed with the product quality, professional service, and quick response.<br><br>The extinguisher was properly packed, looks premium, and the team guided me regarding the right fire safety equipment for my requirement. Fyrnex provides reliable fire extinguishers and safety solutions with good customer support.<br><br>Highly recommended for anyone looking for genuine fire safety products, fire extinguishers, and professional service. A trusted name for fire protection solutions. One of the best fire extinguisher suppliers in Kolkata."</p>
+          <span class="reviewer">— Darakhshan Ali</span>
         </div>
-        <div class="review-card">
+        </a><a href="https://share.google/jm2EIbCsINy0qaVyh" target="_blank" rel="noopener" style="display:block;color:inherit;text-decoration:none;cursor:pointer;"><div class="review-card">
           <div class="stars">★★★★★</div>
-          <p>"Placeholder review — swap in a real client quote here."</p>
-          <span class="reviewer">— Client name, Company</span>
+          <p>"Recently purchased a powder fire extinguisher from Fyrnex and had a great experience. The product quality is excellent, finishing is impressive, and the extinguisher looks strong and reliable.<br><br>The Fyrnex team was very helpful in explaining the right fire safety equipment and guided me properly before purchase. Their service feels professional and customer-focused.<br><br>If you are looking for genuine fire extinguishers and reliable fire protection solutions, I would definitely recommend Fyrnex. Great quality product and trustworthy service."</p>
+          <span class="reviewer">— Abdul Waris Ali</span>
         </div>
-        <div class="review-card">
+        </a><a href="https://share.google/jm2EIbCsINy0qaVyh" target="_blank" rel="noopener" style="display:block;color:inherit;text-decoration:none;cursor:pointer;"><div class="review-card">
           <div class="stars">★★★★★</div>
-          <p>"Placeholder review — swap in a real client quote here."</p>
-          <span class="reviewer">— Client name, Company</span>
-        </div>
+          <p>"Purchased fire extinguishers from FYRNEX. The process was smooth, the product details were explained clearly, and the service was professional. Good experience overall."</p>
+          <span class="reviewer">— Pawan</span>
+        </div></a>
       </div>
       <div class="reviews-cta reveal">
         <a class="btn ghost" href="https://share.google/nTjXEqz5ZgIfdqkw7" target="_blank" rel="noopener">See all reviews on Google</a>
@@ -1647,137 +1651,72 @@ setTimeout(() => document.querySelectorAll('.reveal:not(.in)').forEach(el => el.
 }
 </style>
 
-<script>
-/* ======================================================================
-   LIVE GOOGLE REVIEWS — "What clients say" section
-   ======================================================================
-   Fills #reviews-grid with the 3 most recent Google reviews on every
-   page load, straight from Google (no third-party widget/subscription).
 
-   TO TURN THIS ON, fill in the two constants below:
-
-   1) GOOGLE_PLACES_API_KEY
-      - Go to https://console.cloud.google.com/ -> create/select a project
-      - APIs & Services > Library > enable "Places API (New)"
-      - APIs & Services > Credentials > Create credentials > API key
-      - Restrict the key: Application restrictions = "Websites", and add
-        your domain(s), e.g. https://fyrnex.in/*
-        Also under API restrictions, limit it to "Places API (New)".
-      - Paste the key below.
-
-   2) GOOGLE_PLACE_ID
-      - Go to https://developers.google.com/maps/documentation/places/web-service/place-id
-      - Search "Fyrnex, J-64/6 Fatehpur Village Road, Garden Reach, Kolkata"
-      - Copy the Place ID it gives you (starts with "ChIJ...")
-      - Paste it below.
-
-   Until both are filled in, the 3 static placeholder cards already in
-   the HTML above stay visible — the site keeps working either way.
-
-   Note on Google's rules: Google's Places API only ever returns up to
-   5 reviews for a place (Google's own limit, not something this script
-   can change), so "3 most recent" here means the 3 newest out of
-   whichever up-to-5 reviews Google's API hands back.
-   ====================================================================== */
-(function(){
-  const GOOGLE_PLACES_API_KEY = "AIzaSyBxNVynLnJmV3AXsbDugQUUcarTgzuFbFA";
-  const GOOGLE_PLACE_ID = "ChIJS6moHz95AjoRbUB1g85FRHU";
-  const REVIEWS_TO_SHOW = 3;
-
-  // CACHE_HOURS controls how often the Places API is actually called.
-  // Reviews change rarely, so there's no need to spend an API call on
-  // every single page load. The fetched reviews are stored in THIS
-  // VISITOR'S browser (localStorage) with a timestamp; as long as that
-  // cache is younger than CACHE_HOURS, repeat visits from the same
-  // browser render with ZERO extra API calls.
-  //
-  // Honest limitation: localStorage is per-browser, not shared across
-  // visitors. A brand-new visitor still triggers one fresh API call on
-  // their first page load (then their own repeat visits are free for
-  // CACHE_HOURS). So this cuts calls from repeat traffic and people who
-  // browse multiple pages, but each new unique visitor still costs one
-  // call. For a small local-business site this is easily enough to stay
-  // inside the free 1,000 calls/month — a true site-wide cache (so ALL
-  // visitors share one daily fetch) would need a small server-side
-  // step, which isn't possible from a plain static HTML file.
-  const CACHE_HOURS = 24;
-  const CACHE_KEY = 'fyrnex_google_reviews_cache_v1';
-
-  if(!GOOGLE_PLACES_API_KEY || !GOOGLE_PLACE_ID) return; // keep static fallback cards
-
-  const grid = document.getElementById('reviews-grid');
-  if(!grid) return;
-
-  function stars(rating){
-    const full = Math.round(rating);
-    return '★★★★★☆☆☆☆☆'.slice(5 - full, 10 - full);
+<style>
+/* ===== Mobile: Who We Serve showcase ===== */
+@media (max-width:760px){
+  /* Keep the image landscape enough to remain visible on phones. */
+  #premisesShowcase{
+    aspect-ratio:16/10;
+    border-radius:14px;
+    margin-bottom:32px;
   }
 
-  function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str || '';
-    return d.innerHTML;
+  #premisesShowcase .showcase-copy{
+    top:auto !important;
+    bottom:0 !important;
+    left:0 !important;
+    right:0 !important;
+    width:100% !important;
+    box-sizing:border-box;
+    padding:14px 16px 34px !important;
+    justify-content:flex-end !important;
+    align-items:flex-start !important;
+    text-align:left !important;
   }
 
-  function render(reviews){
-    if(!reviews || !reviews.length) return; // leave placeholders if nothing comes back
-    grid.innerHTML = reviews.map(rev => `
-      <div class="review-card">
-        <div class="stars">${stars(rev.rating || 5)}</div>
-        <p>"${escapeHtml(rev.text && rev.text.text)}"</p>
-        <span class="reviewer">— ${escapeHtml(rev.authorAttribution && rev.authorAttribution.displayName || 'Google user')}</span>
-      </div>
-    `).join('');
+  #premisesShowcase .showcase-copy .tag{
+    font-size:9px !important;
+    line-height:1.2;
+    letter-spacing:.13em;
+    margin-bottom:6px !important;
   }
 
-  function readCache(){
-    try{
-      const raw = localStorage.getItem(CACHE_KEY);
-      if(!raw) return null;
-      const cached = JSON.parse(raw);
-      const ageHours = (Date.now() - cached.savedAt) / 36e5;
-      if(ageHours > CACHE_HOURS) return null; // expired
-      return cached.reviews;
-    }catch(e){
-      return null; // corrupted/unavailable cache, fall through to a fresh fetch
-    }
+  #premisesShowcase .showcase-copy h3{
+    font-size:17px !important;
+    line-height:1.15 !important;
+    margin:0 0 6px !important;
+    max-width:92%;
   }
 
-  function writeCache(reviews){
-    try{
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), reviews }));
-    }catch(e){
-      // localStorage unavailable (private browsing etc.) — not fatal,
-      // it just means this particular visitor won't get caching.
-    }
+  #premisesShowcase .showcase-copy p{
+    font-size:11.5px !important;
+    line-height:1.35 !important;
+    max-width:92% !important;
+    margin:0 !important;
   }
 
-  // 1) Try the cache first — this is the common case and costs 0 API calls.
-  const cached = readCache();
-  if(cached){
-    render(cached);
-    return;
+  /* Keep the carousel controls evenly aligned at the bottom. */
+  #premisesShowcase .showcase-nav{
+    bottom:10px !important;
+    left:16px !important;
+    right:16px !important;
+    height:4px;
+    display:flex !important;
+    align-items:center;
+    justify-content:center !important;
+    gap:7px !important;
   }
 
-  // 2) Cache missing/expired — make one live call, render it, and cache
-  //    the result so the next visitor (within CACHE_HOURS) reuses it.
-  fetch(`https://places.googleapis.com/v1/places/${GOOGLE_PLACE_ID}?reviewsSort=NEWEST`, {
-    headers: {
-      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-      'X-Goog-FieldMask': 'reviews'
-    }
-  })
-  .then(r => r.ok ? r.json() : Promise.reject(r.status))
-  .then(data => {
-    const reviews = (data.reviews || []).slice(0, REVIEWS_TO_SHOW);
-    if(!reviews.length) return; // leave placeholders if nothing comes back
-    render(reviews);
-    writeCache(reviews);
-  })
-  .catch(err => {
-    console.warn('Live Google reviews fetch failed, showing fallback cards.', err);
-  });
-})();
-</script>
+  #premisesShowcase .showcase-nav button,
+  #premisesShowcase .showcase-nav button.active{
+    width:28px !important;
+    height:3px !important;
+    flex:0 0 28px;
+    margin:0 !important;
+  }
+}
+</style>
+
 </body>
 </html>
