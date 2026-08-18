@@ -622,6 +622,9 @@ body::before{
   gap:18px;
   border-top:0;
   cursor:grab;
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
 }
 .services-list.dragging{cursor:grabbing}
 .services-list .svc{
@@ -963,9 +966,11 @@ header{background:rgba(10,10,11,.94);backdrop-filter:blur(20px);-webkit-backdrop
         </div>
         <p>Feedback from the sites we service across Kolkata.</p>
       </div>
-      <!-- TEMP PLACEHOLDER: replace this .reviews-grid block with a live Google Reviews
-           widget (e.g. Elfsight, Tagembed, EmbedSocial) once set up, or swap in real quotes. -->
-      <div class="reviews-grid reveal">
+      <!-- These 3 cards are shown until (and unless) the live Google Reviews fetch below
+           succeeds. Once GOOGLE_PLACES_API_KEY + GOOGLE_PLACE_ID are set in the script
+           near the end of this file, they get replaced automatically with the 3 most
+           recent real Google reviews on every page load. -->
+      <div class="reviews-grid reveal" id="reviews-grid">
         <div class="review-card">
           <div class="stars">★★★★★</div>
           <p>"Placeholder review — swap in a real client quote here."</p>
@@ -1008,7 +1013,7 @@ header{background:rgba(10,10,11,.94);backdrop-filter:blur(20px);-webkit-backdrop
         </div>
       </div>
       <div class="map-box reveal">
-        <iframe src="https://www.google.com/maps?q=J-64/6+Fatehpur+Village+Road+Garden+Reach+Kolkata+West+Bengal+700024&output=embed" width="100%" height="320" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="FYRNEX location on Google Maps"></iframe>
+        <iframe src="https://www.google.com/maps?cid=8449955554124972141&output=embed" width="100%" height="320" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="FYRNEX location on Google Maps"></iframe>
       </div>
     </div>
   </section>
@@ -1481,27 +1486,129 @@ setTimeout(() => document.querySelectorAll('.reveal:not(.in)').forEach(el => el.
 
 
 <script>
-/* Interactive What We Do slider */
+/* Interactive What We Do slider — seamless loop + momentum physics.
+   Works with mouse drag on desktop and touch swipe on phone via Pointer Events
+   (Pointer Events unify mouse/touch/pen, so no separate touch handlers needed). */
 (()=>{
  const slider=document.querySelector('.services-list');
  if(!slider) return;
- let down=false,start=0,left=0,auto;
- const move=()=>{ if(!down) slider.scrollLeft+=1; };
- const startAuto=()=>{clearInterval(auto);auto=setInterval(move,25)};
- const stopAuto=()=>clearInterval(auto);
- slider.addEventListener('pointerdown',e=>{
-   down=true; stopAuto(); start=e.clientX; left=slider.scrollLeft;
-   slider.classList.add('dragging'); slider.setPointerCapture(e.pointerId);
+
+ // Duplicate the cards once so the track has two identical halves —
+ // this is what makes the loop seamless instead of hitting a hard edge.
+ const originalChildren = Array.from(slider.children);
+ originalChildren.forEach(node=>{
+   const clone = node.cloneNode(true);
+   clone.classList.remove('reveal'); // clones should render immediately, no fade-in
+   clone.style.opacity = '1';
+   clone.style.transform = 'none';
+   clone.setAttribute('aria-hidden','true');
+   slider.appendChild(clone);
  });
- slider.addEventListener('pointermove',e=>{
-   if(!down)return;
-   slider.scrollLeft=left-(e.clientX-start);
+
+ let halfWidth = 0;
+ const measure = ()=>{ halfWidth = slider.scrollWidth / 2; };
+ measure();
+ window.addEventListener('resize', measure);
+
+ // Wrap scrollLeft into the [0, halfWidth) range so the loop never runs out of track.
+ const wrap = (pos)=>{
+   if (halfWidth <= 0) return pos;
+   pos = pos % halfWidth;
+   if (pos < 0) pos += halfWidth;
+   return pos;
+ };
+
+ let pos = 0;           // our own float tracker (subpixel-accurate, unlike scrollLeft)
+ let velocity = 0;       // px per ms, positive = moving right (forward)
+ let dragging = false;
+ let lastX = 0, lastT = 0;
+ const AUTO_SPEED = 0.045;   // px/ms of gentle autoplay drift when idle
+ const FRICTION = 0.945;     // per-frame velocity decay after release — higher = slides further
+ const STOP_THRESHOLD = 0.005;
+ let hovering = false;
+
+ const apply = ()=>{ pos = wrap(pos); slider.scrollLeft = pos; };
+
+ let lastFrame = performance.now();
+ function frame(now){
+   const dt = Math.min(now - lastFrame, 48); // clamp to avoid jumps on tab-switch
+   lastFrame = now;
+
+   if (dragging) {
+     // position already set directly in pointermove; just keep the loop alive
+   } else if (Math.abs(velocity) > STOP_THRESHOLD) {
+     // momentum: how hard/fast the user flicked decides how far and how long it keeps sliding
+     pos += velocity * dt;
+     velocity *= Math.pow(FRICTION, dt / 16.67);
+     if (Math.abs(velocity) <= STOP_THRESHOLD) velocity = 0;
+     apply();
+   } else if (!hovering) {
+     // gentle continuous drift, looping forever (paused while hovering on desktop)
+     pos += AUTO_SPEED * dt;
+     apply();
+   }
+   requestAnimationFrame(frame);
+ }
+ requestAnimationFrame(frame);
+
+ const velocitySamples = [];
+ const pushSample = (x, t)=>{
+   velocitySamples.push({x, t});
+   if (velocitySamples.length > 5) velocitySamples.shift();
+ };
+
+ slider.addEventListener('pointerdown', e=>{
+   dragging = true;
+   velocity = 0;
+   lastX = e.clientX;
+   lastT = performance.now();
+   velocitySamples.length = 0;
+   pushSample(lastX, lastT);
+   slider.classList.add('dragging');
+   slider.setPointerCapture(e.pointerId);
  });
- slider.addEventListener('pointerup',()=>{down=false;slider.classList.remove('dragging');startAuto()});
- slider.addEventListener('pointercancel',()=>{down=false;startAuto()});
- slider.addEventListener('mouseenter',stopAuto);
- slider.addEventListener('mouseleave',startAuto);
- startAuto();
+
+ slider.addEventListener('pointermove', e=>{
+   if (!dragging) return;
+   const now = performance.now();
+   const dx = e.clientX - lastX;
+   pos -= dx;
+   apply();
+   lastX = e.clientX;
+   lastT = now;
+   pushSample(lastX, lastT);
+ });
+
+ const release = ()=>{
+   if (!dragging) return;
+   dragging = false;
+   slider.classList.remove('dragging');
+
+   // Velocity from how far/fast the last bit of the drag moved — this is the
+   // "hit it harder, it keeps sliding longer" feel. Uses the oldest vs newest
+   // sample in the short buffer so a quick flick reads correctly even if the
+   // very last pointermove was tiny.
+   if (velocitySamples.length >= 2) {
+     const first = velocitySamples[0];
+     const last = velocitySamples[velocitySamples.length - 1];
+     const dt = last.t - first.t;
+     const dx = last.x - first.x;
+     velocity = dt > 0 ? (-dx / dt) : 0;
+     // cap so an extreme flick doesn't send it flying off unrealistically far
+     const MAX_V = 3.2;
+     velocity = Math.max(-MAX_V, Math.min(MAX_V, velocity));
+   } else {
+     velocity = 0;
+   }
+ };
+
+ slider.addEventListener('pointerup', release);
+ slider.addEventListener('pointercancel', release);
+
+ // Pause the gentle autoplay drift while the cursor is hovering (desktop),
+ // but momentum from a flick still finishes naturally either way.
+ slider.addEventListener('mouseenter', ()=>{ hovering = true; });
+ slider.addEventListener('mouseleave', ()=>{ hovering = false; });
 })();
 </script>
 
@@ -1539,5 +1646,138 @@ setTimeout(() => document.querySelectorAll('.reveal:not(.in)').forEach(el => el.
   .showcase-copy p{font-size:13px;max-width:300px;}
 }
 </style>
+
+<script>
+/* ======================================================================
+   LIVE GOOGLE REVIEWS — "What clients say" section
+   ======================================================================
+   Fills #reviews-grid with the 3 most recent Google reviews on every
+   page load, straight from Google (no third-party widget/subscription).
+
+   TO TURN THIS ON, fill in the two constants below:
+
+   1) GOOGLE_PLACES_API_KEY
+      - Go to https://console.cloud.google.com/ -> create/select a project
+      - APIs & Services > Library > enable "Places API (New)"
+      - APIs & Services > Credentials > Create credentials > API key
+      - Restrict the key: Application restrictions = "Websites", and add
+        your domain(s), e.g. https://fyrnex.in/*
+        Also under API restrictions, limit it to "Places API (New)".
+      - Paste the key below.
+
+   2) GOOGLE_PLACE_ID
+      - Go to https://developers.google.com/maps/documentation/places/web-service/place-id
+      - Search "Fyrnex, J-64/6 Fatehpur Village Road, Garden Reach, Kolkata"
+      - Copy the Place ID it gives you (starts with "ChIJ...")
+      - Paste it below.
+
+   Until both are filled in, the 3 static placeholder cards already in
+   the HTML above stay visible — the site keeps working either way.
+
+   Note on Google's rules: Google's Places API only ever returns up to
+   5 reviews for a place (Google's own limit, not something this script
+   can change), so "3 most recent" here means the 3 newest out of
+   whichever up-to-5 reviews Google's API hands back.
+   ====================================================================== */
+(function(){
+  const GOOGLE_PLACES_API_KEY = "AIzaSyBxNVynLnJmV3AXsbDugQUUcarTgzuFbFA";
+  const GOOGLE_PLACE_ID = "ChIJS6moHz95AjoRbUB1g85FRHU";
+  const REVIEWS_TO_SHOW = 3;
+
+  // CACHE_HOURS controls how often the Places API is actually called.
+  // Reviews change rarely, so there's no need to spend an API call on
+  // every single page load. The fetched reviews are stored in THIS
+  // VISITOR'S browser (localStorage) with a timestamp; as long as that
+  // cache is younger than CACHE_HOURS, repeat visits from the same
+  // browser render with ZERO extra API calls.
+  //
+  // Honest limitation: localStorage is per-browser, not shared across
+  // visitors. A brand-new visitor still triggers one fresh API call on
+  // their first page load (then their own repeat visits are free for
+  // CACHE_HOURS). So this cuts calls from repeat traffic and people who
+  // browse multiple pages, but each new unique visitor still costs one
+  // call. For a small local-business site this is easily enough to stay
+  // inside the free 1,000 calls/month — a true site-wide cache (so ALL
+  // visitors share one daily fetch) would need a small server-side
+  // step, which isn't possible from a plain static HTML file.
+  const CACHE_HOURS = 24;
+  const CACHE_KEY = 'fyrnex_google_reviews_cache_v1';
+
+  if(!GOOGLE_PLACES_API_KEY || !GOOGLE_PLACE_ID) return; // keep static fallback cards
+
+  const grid = document.getElementById('reviews-grid');
+  if(!grid) return;
+
+  function stars(rating){
+    const full = Math.round(rating);
+    return '★★★★★☆☆☆☆☆'.slice(5 - full, 10 - full);
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  function render(reviews){
+    if(!reviews || !reviews.length) return; // leave placeholders if nothing comes back
+    grid.innerHTML = reviews.map(rev => `
+      <div class="review-card">
+        <div class="stars">${stars(rev.rating || 5)}</div>
+        <p>"${escapeHtml(rev.text && rev.text.text)}"</p>
+        <span class="reviewer">— ${escapeHtml(rev.authorAttribution && rev.authorAttribution.displayName || 'Google user')}</span>
+      </div>
+    `).join('');
+  }
+
+  function readCache(){
+    try{
+      const raw = localStorage.getItem(CACHE_KEY);
+      if(!raw) return null;
+      const cached = JSON.parse(raw);
+      const ageHours = (Date.now() - cached.savedAt) / 36e5;
+      if(ageHours > CACHE_HOURS) return null; // expired
+      return cached.reviews;
+    }catch(e){
+      return null; // corrupted/unavailable cache, fall through to a fresh fetch
+    }
+  }
+
+  function writeCache(reviews){
+    try{
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), reviews }));
+    }catch(e){
+      // localStorage unavailable (private browsing etc.) — not fatal,
+      // it just means this particular visitor won't get caching.
+    }
+  }
+
+  // 1) Try the cache first — this is the common case and costs 0 API calls.
+  const cached = readCache();
+  if(cached){
+    render(cached);
+    return;
+  }
+
+  // 2) Cache missing/expired — make one live call, render it, and cache
+  //    the result so the next visitor (within CACHE_HOURS) reuses it.
+  fetch(`https://places.googleapis.com/v1/places/${GOOGLE_PLACE_ID}?reviewsSort=NEWEST`, {
+    headers: {
+      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+      'X-Goog-FieldMask': 'reviews'
+    }
+  })
+  .then(r => r.ok ? r.json() : Promise.reject(r.status))
+  .then(data => {
+    const reviews = (data.reviews || []).slice(0, REVIEWS_TO_SHOW);
+    if(!reviews.length) return; // leave placeholders if nothing comes back
+    render(reviews);
+    writeCache(reviews);
+  })
+  .catch(err => {
+    console.warn('Live Google reviews fetch failed, showing fallback cards.', err);
+  });
+})();
+</script>
 </body>
 </html>
