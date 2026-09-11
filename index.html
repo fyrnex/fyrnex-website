@@ -66,17 +66,10 @@ img{content-visibility:auto}
   .hero-fire-interaction, .ambient-fire-interaction { display: none !important; }
   body::before { mix-blend-mode: normal !important; opacity: 0 !important; }
 
-  /* ---- STICKY HEADER: fully opaque, no blur ----
-     The site's own max-width:900px rule already does this, but it does not
-     cover phones wider than 900 CSS px, landscape, or iOS Safari quirks.
-     !important makes this win regardless of source order.
-     Same colour the site already uses: var(--bg) = #0a0a0b. */
-  header, .topbar, .mobile-menu {
-    background: var(--bg, #0a0a0b) !important;
-    background-color: var(--bg, #0a0a0b) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
+  /* ---- STICKY HEADER ----
+     Handled by the GLOBAL header rule further down (outside any media query),
+     so that it cannot be missed on iPhones, tablets, landscape, or viewports
+     wider than 900px. Nothing header-related belongs in here. */
 
   /* ---- FYRNEX HERO TITLE FLICKER (Android) ----
      .bfyr animates background-position (the fyrFlow shimmer) on an element
@@ -131,10 +124,42 @@ img{content-visibility:auto}
      Those are small pills, they are not what forces the title to re-rasterise,
      and dropping the blur changes their look. */
 
-  /* Horizontal carousels must never steal the vertical swipe */
-  .showcase, .services-list, .cert-slider, .reviews-slider { overscroll-behavior: contain; }
+  /* REGRESSION FIX: an earlier version of this patch put
+       .showcase, .cert-slider, .reviews-slider { overscroll-behavior: contain }
+     here. `contain` applies to BOTH axes, and these elements are overflow:hidden
+     scroll containers that cannot scroll vertically -- so the vertical gesture
+     got trapped inside them and never chained to the page. That is exactly why
+     "Who we serve" and the certificates section would not scroll while the rest
+     of the page did. The site's own rules already set overscroll-behavior-x:contain
+     (x-axis only, vertical chaining left alone), which is the correct thing.
+     So: nothing here. Do not add overscroll-behavior to these carousels. */
 
   .reveal { will-change: auto; }
+}
+
+/* ---- STICKY HEADER: fully opaque on EVERY device ----
+   Kept outside the mobile media query on purpose. The base rule is
+   header{background:rgba(10,10,11,.6); backdrop-filter:blur(18px) saturate(160%)},
+   i.e. 60% opaque and relying on a backdrop blur to look solid. iOS Safari is
+   unreliable at sampling a backdrop for position:fixed elements while the page
+   scrolls, so the blur can drop out and you are left looking straight through
+   40% of the header. Hardcoding the colour (instead of var(--bg)) removes any
+   dependency on custom-property resolution too. */
+header, .topbar {
+  background: #0a0a0b !important;
+  background-color: #0a0a0b !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+header::before { background: #0a0a0b !important; }
+
+@media (max-width: 900px), (pointer: coarse) {
+  .mobile-menu {
+    background: #0a0a0b !important;
+    background-color: #0a0a0b !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
 /* Main-thread smooth anchor scrolling feels like lag on touch */
@@ -940,5 +965,5 @@ window.addEventListener("load",function(){measure();norm();apply()});
 }();
 document.querySelectorAll("[data-mail]").forEach(function(a){var u=a.getAttribute("data-mail")+"@"+d;a.href="mail"+"to:"+u;if(a.hasAttribute("data-mail-text"))a.textContent=u})}();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3888be59bd40b24',t:'MTc4ODk4MTU4Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a38d90075f263059',t:'MTc4OTAzNDE4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a39958579b44be0a',t:'MTc4OTE1NzczMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3888be59bd40b24',t:'MTc4ODk4MTU4Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a38d90075f263059',t:'MTc4OTAzNDE4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3996af30fcef655',t:'MTc4OTE1ODQ5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
