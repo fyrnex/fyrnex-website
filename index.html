@@ -45,12 +45,15 @@ img{content-visibility:auto}
 </style>
 <style>
 /* ============================================================
-   FYRNEX — Android / iOS mobile perf + visual patch.
+   FYRNEX patch v6
    1. Root cause: the root element is no longer a scroll container,
       so Chrome/Android gets compositor-thread scrolling back.
    2. Removes per-frame full-screen blend-mode compositing.
-   3. Forces the sticky header fully opaque (nothing scrolls through).
+   3. Sticky header made opaque on EVERY device + protected from
+      blending above and below + safe-area shield (v5).
    4. Stops the FYRNEX hero title flickering on Android.
+   v6: removed `opacity:1 !important` from the header rule -- it pinned
+   .mobile-menu permanently open (the menu is hidden purely by opacity:0).
    Delete this whole block to revert.
    ============================================================ */
 @media (max-width: 900px), (pointer: coarse) {
@@ -64,7 +67,8 @@ img{content-visibility:auto}
      these two ship in the markup and are still blended. */
   #globalFireInteraction, #cursorLight,
   .hero-fire-interaction, .ambient-fire-interaction { display: none !important; }
-  body::before { mix-blend-mode: normal !important; opacity: 0 !important; }
+  /* body::before (the blended grain overlay) is killed by the GLOBAL rule
+     below -- it paints above the header at z-index:200, on every device. */
 
   /* ---- STICKY HEADER ----
      Handled by the GLOBAL header rule further down (outside any media query),
@@ -137,21 +141,58 @@ img{content-visibility:auto}
   .reveal { will-change: auto; }
 }
 
-/* ---- STICKY HEADER: fully opaque on EVERY device ----
-   Kept outside the mobile media query on purpose. The base rule is
-   header{background:rgba(10,10,11,.6); backdrop-filter:blur(18px) saturate(160%)},
-   i.e. 60% opaque and relying on a backdrop blur to look solid. iOS Safari is
-   unreliable at sampling a backdrop for position:fixed elements while the page
-   scrolls, so the blur can drop out and you are left looking straight through
-   40% of the header. Hardcoding the colour (instead of var(--bg)) removes any
-   dependency on custom-property resolution too. */
-header, .topbar {
+/* ---- v5 STICKY HEADER: opaque on EVERY device, no blend interference ----
+   Four independent causes, all closed here (all global, no media query,
+   so no breakpoint / pointer detection / custom-property can be missed):
+
+   1. The base rule is header{background:rgba(10,10,11,.6);
+      backdrop-filter:blur(18px) saturate(160%)} -- 60% opaque and DEPENDENT on
+      the blur to look solid. iOS Safari is unreliable at sampling a backdrop for
+      position:fixed elements during scroll, so the blur drops out and you see
+      straight through 40% of the header. -> hardcoded opaque colour, blur off.
+   2. body::before is position:fixed with z-index:200 and mix-blend-mode:overlay.
+      body creates no stacking context, so that 200 sits in the ROOT stacking
+      context and paints ABOVE header (z-index:50). Anything blending from above
+      lands on the header. -> blend removed globally, not just on mobile.
+   3. Blending from below (the hero uses mix-blend-mode:screen layers).
+      -> isolation:isolate makes the header its own stacking context, so nothing
+      outside it can blend in or out.
+   4. Safe-area gap: header::before only extended 100vh upward, and if
+      viewport-fit=cover is absent env(safe-area-inset-top) resolves to 0 while
+      Safari still leaves the status-bar strip showing page content.
+      -> the shield now starts 200px above the header, always. */
+header, .topbar, .mobile-menu {
   background: #0a0a0b !important;
   background-color: #0a0a0b !important;
+  background-image: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-header::before { background: #0a0a0b !important; }
+/* DO NOT put `opacity: 1 !important` in the rule above.
+   .mobile-menu is hidden purely by `opacity:0` (it has no display:none or
+   visibility:hidden), and .mobile-menu.open flips it to `opacity:1`.
+   An !important opacity:1 therefore pins the menu permanently open.
+   Neither `header` nor `.topbar` uses opacity anywhere, so the declaration
+   bought nothing. Verified before removing. */
+header { isolation: isolate; }
+header::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: -200px !important;
+  bottom: auto !important;
+  height: 200px !important;
+  background: #0a0a0b !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+/* the grain overlay paints above the header (z-index:200 vs 50) and blends */
+body::before {
+  mix-blend-mode: normal !important;
+  opacity: 0 !important;
+  display: none !important;
+}
 
 @media (max-width: 900px), (pointer: coarse) {
   .mobile-menu {
@@ -965,5 +1006,5 @@ window.addEventListener("load",function(){measure();norm();apply()});
 }();
 document.querySelectorAll("[data-mail]").forEach(function(a){var u=a.getAttribute("data-mail")+"@"+d;a.href="mail"+"to:"+u;if(a.hasAttribute("data-mail-text"))a.textContent=u})}();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3888be59bd40b24',t:'MTc4ODk4MTU4Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a38d90075f263059',t:'MTc4OTAzNDE4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3996af30fcef655',t:'MTc4OTE1ODQ5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3888be59bd40b24',t:'MTc4ODk4MTU4Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a38d90075f263059',t:'MTc4OTAzNDE4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3998110889bf647',t:'MTc4OTE1OTQwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
